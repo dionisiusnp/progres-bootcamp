@@ -1,16 +1,16 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bootcamp/auth/register.dart';
 import 'package:flutter_bootcamp/buyer/buyer_screen.dart';
 import 'package:flutter_bootcamp/model/auth.dart';
 import 'package:flutter_bootcamp/model/config.dart';
-import 'package:flutter_bootcamp/seller/product/index_screen.dart';
 import 'package:flutter_bootcamp/seller/seller_screen.dart';
 import 'package:http/http.dart' as http;
 
 class Login extends StatefulWidget {
-  const Login({super.key});
+  const Login({
+    Key? key,
+  }) : super(key: key);
 
   @override
   State<Login> createState() => _LoginState();
@@ -24,22 +24,16 @@ class _LoginState extends State<Login> {
   final TextEditingController _controllerPassword = TextEditingController();
 
   bool _obscurePassword = true;
-  bool _isLoading = false;
 
   Future<void> _login() async {
-    // Cek apakah semua field valid
     if (!_formKey.currentState!.validate()) {
-      return; // Jika tidak valid, tidak melakukan apa-apa
+      return;
     }
-
-    setState(() {
-      _isLoading = true;
-    });
-
+    
     final url = Uri.parse('${Config().baseUrl}/login');
     final body = {
       "email": _controllerUsername.text,
-      "password": _controllerPassword.text
+      "password": _controllerPassword.text,
     };
 
     try {
@@ -49,15 +43,15 @@ class _LoginState extends State<Login> {
         headers: headers,
         body: jsonEncode(body),
       );
-      print(response.body);
       final data = jsonDecode(response.body);
+
       if (response.statusCode == 200) {
         final token = data['token'];
         final userId = data['data']['id'];
-
+        
         await Auth.saveToken(token);
         await Auth.saveUserid(userId);
-
+  
         // Login berhasil
         if (data['data']['is_seller'] == 1) {
           Navigator.pushReplacement(
@@ -77,13 +71,10 @@ class _LoginState extends State<Login> {
     } catch (e) {
       _showErrorDialog("Login failed.");
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      
     }
   }
 
-  // Fungsi untuk menampilkan dialog error
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
@@ -186,24 +177,28 @@ class _LoginState extends State<Login> {
                         borderRadius: BorderRadius.circular(20),
                       ),
                     ),
-                    onPressed: _login,
+                    onPressed: () {
+                      if (_formKey.currentState?.validate() ?? false) {
+                        print('submitted');
+                      }
+                    },
                     child: const Text("Login"),
                   ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text("Don't have an account?"),
-                      TextButton(
-                        onPressed: () {
-                          _formKey.currentState?.reset();
+                      // TextButton(
+                      //   onPressed: () {
+                      //     _formKey.currentState?.reset();
 
-                          Navigator.push(context,
-                              MaterialPageRoute(builder: (context) {
-                            return Register();
-                          }));
-                        },
-                        child: const Text("Register"),
-                      ),
+                      //     Navigator.push(context,
+                      //         MaterialPageRoute(builder: (context) {
+                      //       return Login();
+                      //     }));
+                      //   },
+                      //   child: const Text("Register"),
+                      // ),
                     ],
                   ),
                 ],
