@@ -5,7 +5,7 @@ class Config {
 
   Config._internal();
 
-  final String baseUrl = "http://backend-bootcamp.localhost/api";
+  final String baseUrl = "https://b506-202-51-113-148.ngrok-free.app/api";
 
   String formatCurrency(int value) {
     // Convert the number to a string and split it into the integer and decimal parts
