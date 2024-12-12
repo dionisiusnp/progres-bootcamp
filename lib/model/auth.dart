@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bootcamp/auth/login.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Auth {
@@ -29,5 +30,14 @@ class Auth {
       "Accept": "application/json",
       if (token != null) "Authorization": "Bearer $token",
     };
+  }
+
+  static Future<void> logout({required BuildContext context}) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('auth_token');
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => Login()),
+    );
   }
 }
