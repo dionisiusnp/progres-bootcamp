@@ -5,5 +5,5 @@ class Config {
 
   Config._internal();
 
-  final String baseUrl = "http://backend-bootcamp.localhost/api";
+  final String baseUrl = "https://b506-202-51-113-148.ngrok-free.app/api";
 }
