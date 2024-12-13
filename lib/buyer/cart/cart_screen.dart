@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bootcamp/api/order_item_api.dart';
+import 'package:flutter_bootcamp/buyer/payment_screen.dart';
+import 'package:flutter_bootcamp/model/auth.dart';
+import 'package:flutter_bootcamp/model/cart_item_model.dart';
 import 'package:flutter_bootcamp/model/config.dart';
-
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
 
@@ -9,55 +12,101 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
-  final List<CartItem> _cartItems = [
-    CartItem(name: 'Product 1', quantity: 2, price: 10000, shipping_cost: 5000),
-    CartItem(name: 'Product 2', quantity: 1, price: 55000, shipping_cost: 0),
-    // ... Add more items as needed
-  ];
+  late Future<List<CartItem>> _cartFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _cartFuture = loadCartItems();
+  }
+
+  Future<List<CartItem>> loadCartItems() async {
+    final buyerId = await Auth.getUserid();
+    if (buyerId != null) {
+      return OrderItemApi().getCart(buyerId);
+    } else {
+      throw Exception('User not authenticated');
+    }
+  }
+
+  Future<void> _deleteItem(int itemId) async {
+    final success = await OrderItemApi().deleteOrderItem(itemId);
+    if (success) {
+      setState(() {
+        _cartFuture = loadCartItems(); // Muat ulang keranjang
+      });
+
+      final updatedCart = await _cartFuture;
+      if (updatedCart.isEmpty) {
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Keranjang kosong.')),
+          );
+        }
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Gagal menghapus item.')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Your Cart'),
-      ),
-      body: ListView.builder(
-        itemCount: _cartItems.length,
-        itemBuilder: (context, index) {
-          final item = _cartItems[index];
-          return Card(
-            margin: const EdgeInsets.all(16),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  // Product Image
-                  // Image.asset('assets/images/produk-digital.jpeg', width: 80, height: 80, fit: BoxFit.cover),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(item.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                        Text('${item.quantity} x ${Config().formatCurrency(item.price)}', style: const TextStyle(fontSize: 14)),
-                        Text('Shipping Cost: ${Config().formatCurrency(item.shipping_cost)}', style: TextStyle(fontSize: 14, color: Colors.grey[700]),),
-                        // ... Add more details as needed
-                      ],
-                    ),
+      appBar: AppBar(title: const Text('Your Cart')),
+      body: FutureBuilder<List<CartItem>>(
+        future: _cartFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(child: Text('Your cart is empty.'));
+          }
+
+          final cartItems = snapshot.data!;
+          return ListView.builder(
+            itemCount: cartItems.length,
+            itemBuilder: (context, index) {
+              final item = cartItems[index];
+              return Card(
+                margin: const EdgeInsets.all(16),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      // Placeholder for product image
+                      Image.asset('assets/images/produk-digital.jpeg', width: 80, height: 80, fit: BoxFit.cover),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(item.productName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            Text('Quantity: ${item.quantity}', style: const TextStyle(fontSize: 14)),
+                            Text('Shipping: ${Config().formatCurrency(item.shippingCost)}', style: TextStyle(fontSize: 14, color: Colors.grey[700])),
+                            Text('Subtotal: ${Config().formatCurrency(item.price)}', style: TextStyle(fontSize: 14, color: Colors.grey[700])),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        '${Config().formatCurrency(item.totalSub)}',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete),
+                        onPressed: () async {
+                          await _deleteItem(item.id); // Panggil fungsi delete
+                        },
+                      ),
+                    ],
                   ),
-                  Text(
-                    '${Config().formatCurrency(calculateSubtotal(item))}',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete),
-                    onPressed: () {
-                      // Remove item from cart
-                    },
-                  ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           );
         },
       ),
@@ -70,12 +119,27 @@ class _CartScreenState extends State<CartScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Total:', style: TextStyle(fontWeight: FontWeight.bold)),
-                Text('${Config().formatCurrency(calculateTotal())}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                FutureBuilder<List<CartItem>>(
+                  future: _cartFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
+                      final total = snapshot.data!.fold(0, (sum, item) => sum + item.totalSub);
+                      return Text('${Config().formatCurrency(total)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18));
+                    } else {
+                      return const Text('-');
+                    }
+                  },
+                ),
               ],
             ),
             ElevatedButton(
               onPressed: () {
-                // Proceed to checkout
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PaymentScreen(),
+                  ),
+                );
               },
               child: const Text('Checkout'),
             ),
@@ -84,21 +148,4 @@ class _CartScreenState extends State<CartScreen> {
       ),
     );
   }
-
-  int calculateTotal() {
-    return _cartItems.fold(0, (total, item) => total + (item.quantity * item.price + item.shipping_cost));
-  }
-
-  int calculateSubtotal(item) {
-    return item.quantity * item.price + item.shipping_cost;
-  }
-}
-
-class CartItem {
-  final String name;
-  final int quantity;
-  final int price;
-  final int shipping_cost;
-
-  CartItem({required this.name, required this.quantity, required this.price, required this.shipping_cost});
 }
