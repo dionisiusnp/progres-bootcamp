@@ -29,7 +29,7 @@ class _LoginState extends State<Login> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-    
+
     final url = Uri.parse('${Config().baseUrl}/login');
     final body = {
       "email": _controllerUsername.text,
@@ -44,14 +44,14 @@ class _LoginState extends State<Login> {
         body: jsonEncode(body),
       );
       final data = jsonDecode(response.body);
-
+      print(data);
       if (response.statusCode == 200) {
         final token = data['token'];
         final userId = data['data']['id'];
-        
+
         await Auth.saveToken(token);
         await Auth.saveUserid(userId);
-  
+
         // Login berhasil
         if (data['data']['is_seller'] == 1) {
           Navigator.pushReplacement(
@@ -70,9 +70,7 @@ class _LoginState extends State<Login> {
       }
     } catch (e) {
       _showErrorDialog("Login failed.");
-    } finally {
-      
-    }
+    } finally {}
   }
 
   void _showErrorDialog(String message) {
@@ -185,9 +183,7 @@ class _LoginState extends State<Login> {
                     children: [
                       const Text("Don't have an account?"),
                       TextButton(
-                        onPressed: () {
-                          
-                        },
+                        onPressed: () {},
                         child: const Text("Register"),
                       ),
                     ],
